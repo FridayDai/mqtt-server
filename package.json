@@ -1,0 +1,20 @@
+{
+  "name": "mqtt-server",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "export NODE_ENV=dev && node bin/www",
+    "prod": "export NODE_ENV=prod && node bin/www"
+  },
+  "dependencies": {
+    "axios": "^0.19.2",
+    "cookie-parser": "~1.4.4",
+    "debug": "~2.6.9",
+    "express": "~4.16.1",
+    "hashmap": "^2.4.0",
+    "log4js": "^6.3.0",
+    "mosca": "^2.8.3",
+    "mysql": "^2.18.1"
+  },
+  "devDependencies": {}
+}
