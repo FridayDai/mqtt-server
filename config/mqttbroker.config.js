@@ -13,8 +13,8 @@ const settings = {
 const subscribed_client = [];
 const message_id_map = new HashMap();
 
-const FILE_PATH = process.env.NODE_ENV === 'dev' ? '/Users/xplusz/workspace/mqtt-server/uploads/rec_imgs/' : '/www/wwwroot/47.103.39.44/public/uploads/rec_imgs/';
-const CDN_URL_DOMAIN = 'http://47.103.39.44/uploads/rec_imgs/';
+const FILE_PATH = process.env.NODE_ENV === 'dev' ? '/www/wwwroot/fcity/public/uploads/rec_imgs/' : '/www/wwwroot/47.103.39.44/public/uploads/rec_imgs/';
+const CDN_URL_DOMAIN = process.env.NODE_ENV === 'dev' ? 'http://47.116.75.164/uploads/rec_imgs/' : 'http://47.103.39.44/uploads/rec_imgs/';
 const CDN_URL = '/uploads/rec_imgs/';
 
 const server = new mosca.Server(settings);
@@ -46,12 +46,10 @@ server.on('published', async (packet, client) => {
     const messageJson = JSON.parse(payload);
     log.info('message json: ', messageJson);
 
-    if(!messageJson.topic) return;
-
     if(topic.substr(-3) === 'Ack') {
         clearTimeout(message_id_map.get(messageJson.messageId));
         message_id_map.delete(messageJson.messageId);
-
+        log.info('result is ', messageJson.info.result);
         switch(messageJson.info.result) {
             case 'ok':
                 try {
@@ -123,13 +121,16 @@ server.on('published', async (packet, client) => {
                     if(customId) {
                         try {
                             const results = await query(auth_key_sql);
+                            log.info('auth_key_sql result is: ', JSON.stringify(results));
                             results.forEach((item) => {
                                 query(`SELECT callback_url from fa_company_callback WHERE prj_auth_key = '${item.prj_auth_key}'`, null, (err, res) => {
                                     if(err) {
                                         log.error(err.message);
                                         return;
                                     } else {
+                                        log.info('----prepare to send data----');
                                         res.forEach((v) => {
+                                            log.info('send data is :', JSON.stringify(v));
                                             axios.post(v.callback_url, {
                                                 'method': 'post',
                                                 'headers': {
@@ -151,7 +152,6 @@ server.on('published', async (packet, client) => {
             }
         }
     } else if(topic.substr(-14) === 'new/subscribes') {
-        log.info('1111111111');
         try {
             query(`UPDATE fa_device_info SET online_status = 1 WHERE device_key = '${messageJson.clientId}'`);
         } catch(e) {
@@ -168,13 +168,20 @@ server.on('published', async (packet, client) => {
 
 async function sendDataToDevice(deviceId, messageId, content) {
     let contentJson = JSON.parse(content);
-    // if(contentJson.operator === 'EditPerson') {
-    //     const res = await axios.get(contentJson.info.picURI, { responseType: 'arraybuffer' });
-    //     const base64Img = Buffer.from(res.data, 'binary').toString('base64');
-    //
-    //     contentJson.info.pic = `data:image/jpeg;base64,${base64Img}`;
-    //     delete contentJson['info']['picURI'];
-    // }
+    if(contentJson.operator === 'EditPerson') {
+        log.info(contentJson.info.picURI);
+        try {
+            const res = await axios.get(contentJson.info.picURI, { responseType: 'arraybuffer'});
+            const base64Img = Buffer.from(res.data).toString('base64');
+
+            contentJson.info.pic = `data:image/jpeg;base64,${base64Img}`;
+            delete contentJson['info']['picURI'];
+        } catch (e) {
+            log.error(e.message);
+            return;
+        }
+
+    }
 
     const qtt = {};
     qtt.topic = `mqtt/face/${deviceId}`;
@@ -204,7 +211,7 @@ function noAckFunc(messageId) {
 
 async function intervalFunc() {
     try {
-        const result = await query('SELECT id,message_id,device_id,content from fa_device_operate_log WHERE id in (select min(id) from fa_device_operate_log where  (status = "10" OR status = "20") AND max_send_count < 3 AND device_id in (select device_key from fa_device_info) GROUP BY device_id) limit 5');
+        const result = await query('SELECT id,message_id,device_id,content from fa_device_operate_log WHERE id in (select min(id) from fa_device_operate_log where  (status = "10" OR status = "20") AND max_send_count < 3 AND device_id in (select device_key from fa_device_info) GROUP BY device_id) limit 1');
         result.forEach((item) => {
             sendDataToDevice(item.device_id, item.message_id, item.content);
         });
