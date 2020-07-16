@@ -46,6 +46,15 @@ server.on('published', async (packet, client) => {
     const messageJson = JSON.parse(payload);
     log.info('message json: ', messageJson);
 
+
+    if(messageJson.operator === 'Online') {
+        try {
+            query(`UPDATE fa_device_info SET online_status = 1 WHERE device_key = '${messageJson.info.facesluiceId}'`);
+        } catch(e) {
+            log.error(e);
+        }
+    }
+
     if(topic.substr(-3) === 'Ack') {
         clearTimeout(message_id_map.get(messageJson.messageId));
         message_id_map.delete(messageJson.messageId);

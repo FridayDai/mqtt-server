@@ -14,7 +14,8 @@
     "hashmap": "^2.4.0",
     "log4js": "^6.3.0",
     "mosca": "^2.8.3",
-    "mysql": "^2.18.1"
+    "mysql": "^2.18.1",
+    "pm2": "^4.4.0"
   },
   "devDependencies": {}
 }
