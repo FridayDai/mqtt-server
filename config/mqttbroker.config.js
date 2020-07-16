@@ -178,6 +178,7 @@ async function sendDataToDevice(deviceId, messageId, content) {
             delete contentJson['info']['picURI'];
         } catch (e) {
             log.error(e.message);
+            noAckFunc(messageId);
             return;
         }
 
@@ -195,6 +196,7 @@ async function sendDataToDevice(deviceId, messageId, content) {
         return '发送成功';
     } else {
         log.info('device is offline, deviceId is :', deviceId);
+        noAckFunc(messageId);
         return '设备不在线';
     }
 }
@@ -211,7 +213,8 @@ function noAckFunc(messageId) {
 
 async function intervalFunc() {
     try {
-        const result = await query('SELECT id,message_id,device_id,content from fa_device_operate_log WHERE id in (select min(id) from fa_device_operate_log where  (status = "10" OR status = "20") AND max_send_count < 3 AND device_id in (select device_key from fa_device_info) GROUP BY device_id) limit 1');
+        // const result = await query('SELECT id,message_id,device_id,content from fa_device_operate_log WHERE id in (select min(id) from fa_device_operate_log where  (status = "10" OR status = "20") AND max_send_count < 2 AND device_id in (select device_key from fa_device_info) GROUP BY device_id) limit 5');
+        const result = await query('SELECT id,message_id,device_id,content from fa_device_operate_log WHERE (status = "10" OR status = "20") AND max_send_count < 3 AND device_id in (select device_key from fa_device_info) GROUP BY device_id');
         result.forEach((item) => {
             sendDataToDevice(item.device_id, item.message_id, item.content);
         });
