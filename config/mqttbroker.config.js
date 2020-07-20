@@ -4,6 +4,11 @@ const axios = require('axios');
 const fs = require('fs');
 const HashMap = require('hashmap');
 const log4js = require('log4js');
+
+const imagemin = require('imagemin');
+const imageminJpegtran = require('imagemin-jpegtran');
+const imageminPngquant = require('imagemin-pngquant');
+
 const log = log4js.getLogger('mqtt-broker');
 const VistorCheck = require('../service/VisitorCheck/index');
 const settings = {
@@ -87,9 +92,10 @@ server.on('published', async (packet, client) => {
             if(messageJson.info.pic) {
                 const base64Data = messageJson.info.pic.replace(/^data:image\/\w+;base64,/, '');
                 const dataBuffer = Buffer.from(base64Data, 'base64');
-                const now = Math.round(new Date().getTime() / 1000);
+                const now = new Date().getTime();
                 const fileName = `${facesluiceId}-${customId}-${now}.jpg`;
                 if(customId !== '' && customId !== null && customId !== undefined) {
+                    // todo 将图片压缩到50kb
                     // 图片存起来
                     fs.writeFile(FILE_PATH + fileName, dataBuffer, (err) => {
                         if(err) {
@@ -97,6 +103,17 @@ server.on('published', async (packet, client) => {
                             return;
                         }
                         log.info(`${fileName} save success!`);
+                        imagemin(
+                            [FILE_PATH + fileName], {
+                                destination: `${FILE_PATH}/zip`,
+                                plugins: [
+                                    imageminJpegtran(),
+                                    imageminPngquant({
+                                        quality: [0.5, 0.5]
+                                    })
+                                ]
+                            }
+                        );
                     });
                     try {
                         query(`INSERT INTO fa_record_lst (device_key,employee_id,recognize_photo_url,createtime,updatetime,status) VALUES (?,?,?,?,?,?)`,
